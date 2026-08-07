@@ -26,8 +26,20 @@ fi
 if ! id "${SERVICE_USER}" &>/dev/null; then
     echo "Creating dedicated non-root user '${SERVICE_USER}'..."
     useradd --system --no-create-home --shell /usr/sbin/nologin "${SERVICE_USER}"
-    echo "Note: if this server inspects Docker, add ${SERVICE_USER} to the 'docker' group:"
-    echo "  sudo usermod -aG docker ${SERVICE_USER}"
+fi
+
+if getent group systemd-journal &>/dev/null; then
+    echo "Adding ${SERVICE_USER} to 'systemd-journal' group (required for recent_journal_errors)..."
+    usermod -aG systemd-journal "${SERVICE_USER}"
+else
+    echo "WARNING: 'systemd-journal' group not found; recent_journal_errors will fail to read logs." >&2
+fi
+
+if getent group docker &>/dev/null; then
+    echo "Adding ${SERVICE_USER} to 'docker' group (required for list_containers/container_logs)..."
+    usermod -aG docker "${SERVICE_USER}"
+else
+    echo "Note: 'docker' group not found -- skipping (list_containers/container_logs will report Docker as unavailable)."
 fi
 
 echo "Installing ${UNIT_NAME} to /etc/systemd/system/..."

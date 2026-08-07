@@ -13,9 +13,9 @@ ExecStart=/opt/homelab-mcp/.venv/bin/homelab-mcp
 Restart=on-failure
 RestartSec=5
 
-# Hardening. Adjust SupplementaryGroups if your dedicated user needs to be
-# in the "docker" group to reach the Docker socket, and if it needs
-# read-only access to systemd/journal (e.g. "systemd-journal" group).
+# Hardening. Group membership (systemd-journal for journal access,
+# docker for the Docker socket, if present) is granted by deploy/install.sh
+# via `usermod -aG` -- no SupplementaryGroups= needed here.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

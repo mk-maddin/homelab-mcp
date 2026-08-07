@@ -85,13 +85,13 @@ For a persistent deployment on the home server itself:
    `/etc/systemd/system/`, reloads systemd, and enables + starts the
    service (restarts automatically on failure).
 
-   If you want `list_containers` / `container_logs` to work, add the
-   service user to the `docker` group so it can reach the Docker socket:
-
-   ```bash
-   sudo usermod -aG docker homelab-mcp
-   sudo systemctl restart homelab-mcp
-   ```
+   The installer also adds the service user to the `systemd-journal`
+   group (so `recent_journal_errors` can read the journal) and, if a
+   `docker` group exists on the host, to that too (so `list_containers` /
+   `container_logs` can reach the Docker socket). If either group doesn't
+   exist yet -- e.g. Docker isn't installed -- the installer skips it and
+   says so; the corresponding tools will just report that data source as
+   unavailable rather than failing the whole server.
 
 ## Connecting Claude Code / Claude Desktop
 
@@ -126,6 +126,57 @@ connection never leaves your tailnet.
 | `service_status(unit)` | Detailed `systemctl status` output for one systemd service unit. |
 | `recent_journal_errors(since="1h", priority="err")` | Recent journal entries at or above a given syslog priority. |
 | `network_connections()` | Listening TCP/UDP sockets: local address, port, and owning process where permitted. |
+
+## What it looks like in practice
+
+Once connected, the MCP client picks whichever tools are relevant to your
+question and calls them directly -- no manual tool selection needed.
+
+![Claude Code connected to homelab-mcp, calling tools and answering a health-check question](assets/claude-local-homelab-mcp-connection.png)
+
+Here's the same session as text, from Claude Code:
+
+> **You:** Use the homelab MCP server to check system status, disk usage,
+> list systemd services, and check for recent journal errors.
+>
+> **Claude:** I'll check system status, disk usage, services, and recent
+> errors on the homelab server.
+>
+> *Called homelab 4 times*
+>
+> **System status** — healthy. Uptime ~28.6 days, load average near 0,
+> memory 20.7% used (1.6GB/8GB), CPU idle.
+>
+> **Disk (/)** — 354GB/501GB used, 70.7% full, 121GB free. Not critical,
+> but worth watching.
+>
+> **Services** — 188 systemd units. Two failed: `fwupd.service` (firmware
+> update daemon) and `fwupd-refresh.service` (fwupd metadata refresh).
+> Everything else notable (docker, jellyfin, pihole-FTL, ssh, openvpn,
+> NetworkManager) is active/running fine.
+>
+> **Journal errors** — retrieved cleanly (once the service user was added
+> to the `systemd-journal` group by the installer -- see below).
+>
+> Want me to look closer at the fwupd failures via `service_status`?
+
+Four tool calls (`system_status`, `disk_usage`, `list_services`,
+`recent_journal_errors`), one natural-language question, zero SSH
+sessions.
+
+**Gotcha we hit getting here:** on the first run, `recent_journal_errors`
+failed with a permissions error -- the dedicated `homelab-mcp` service
+user isn't in the `adm`/`systemd-journal` groups by default, so
+`journalctl` denied access even though the process itself was running
+fine. `deploy/install.sh` now adds the service user to `systemd-journal`
+automatically (see [Running via systemd](#running-via-systemd) above),
+so a fresh install via the installer shouldn't hit this. If you set the
+service up by hand instead, run:
+
+```bash
+sudo usermod -aG systemd-journal homelab-mcp
+sudo systemctl restart homelab-mcp
+```
 
 ## Development
 
