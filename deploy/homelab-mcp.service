@@ -1,0 +1,26 @@
+[Unit]
+Description=homelab-mcp - read-only MCP server for home server health
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=homelab-mcp
+Group=homelab-mcp
+WorkingDirectory=/opt/homelab-mcp
+EnvironmentFile=/opt/homelab-mcp/.env
+ExecStart=/opt/homelab-mcp/.venv/bin/homelab-mcp
+Restart=on-failure
+RestartSec=5
+
+# Hardening. Adjust SupplementaryGroups if your dedicated user needs to be
+# in the "docker" group to reach the Docker socket, and if it needs
+# read-only access to systemd/journal (e.g. "systemd-journal" group).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/opt/homelab-mcp
+
+[Install]
+WantedBy=multi-user.target
