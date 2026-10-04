@@ -76,7 +76,7 @@ def _denied_folders() -> tuple[Path, ...]:
 
     return tuple(
         dict.fromkeys(
-            (*_DEFAULT_DENIED_FOLDERS, *additionl*)
+            (*_DEFAULT_DENIED_FOLDERS, *additionl)
         )
     )
 
