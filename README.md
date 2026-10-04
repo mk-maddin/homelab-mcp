@@ -27,6 +27,10 @@ Claude client, without SSHing in yourself.
   list with `shell=True` never used and any user-supplied parameter
   validated against a strict allowlist/regex before it touches the
   command line.
+- **Restricted filesystem access.** The read_file and list_directory
+  tools are read-only. Requested paths must be absolute, symlink targets are
+  resolved before access checks, binary files are rejected, and built-in plus
+  administrator-defined deny lists are enforced.
 - **No rate limiting or lockout.** This server does not throttle or lock
   out repeated failed auth attempts. **Do not expose it on the open
   internet, even with the token in place.** Run it behind
@@ -51,6 +55,49 @@ cp .env.example .env
 uv sync
 # or: pip install -e .
 ```
+
+### Filesystem access controls
+ 
+The read_file tool reads regular text files and returns at most 1 MiB per
+request. The list_directory tool lists one directory level and returns at
+most 500 entries. Binary files are rejected. Symlink targets are resolved
+before the deny lists are checked.
+ 
+The following files are always denied:
+ 
+- /etc/passwd
+- /etc/shadow
+- /etc/shadow-
+- /etc/gshadow
+- /etc/gshadow-
+- /etc/sudoers
+- /etc/sudo.conf
+- /etc/crypttab
+ 
+The following folders and all descendants are always denied:
+ 
+- /etc/sudoers.d
+- /etc/ssh
+- /etc/security
+- /opt/homelab_mcp
+- /root
+- /home
+- /proc
+- /sys
+- /dev
+- /run
+
+Optional additional denied files and folders can be configured in .env or
+through environment variables. Values are comma-separated absolute paths;
+quoted and unquoted values are supported:
+
+```bash
+HOMELAB_MCP_DENIED_FILES="/testpath/file-a","/anypath/myfile"
+HOMELAB_MCP_DENIED_FOLDERS="/blahblah/path","/another/path"
+```
+
+These values extend the built-in deny lists and cannot remove built-in
+exclusions.
 
 ### Running locally
 
@@ -114,6 +161,25 @@ token as a header. For example, in Claude Code's MCP config:
 If you're on Tailscale, use the server's Tailscale hostname/IP so the
 connection never leaves your tailnet.
 
+```json
+{
+  "mcpServers": {
+    "homelab": {
+      "command": "uvx",
+      "args": [
+        "fastmcp-remote",
+        "--header",
+        "Authorization: Bearer <your HOMELAB_MCP_TOKEN>",
+        "http:/your-server-hostname:8811/mcp"
+      ]
+    }
+  }
+}
+```
+
+Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows:
+
+
 ## Tools
 
 | Tool | Description |
@@ -126,6 +192,8 @@ connection never leaves your tailnet.
 | `service_status(unit)` | Detailed `systemctl status` output for one systemd service unit. |
 | `recent_journal_errors(since="1h", priority="err")` | Recent journal entries at or above a given syslog priority. |
 | `network_connections()` | Listening TCP/UDP sockets: local address, port, and owning process where permitted. |
+| `read_file(path, max_bytes=1048576)` | Read a permitted regular text file. Built-in and environment-defined deny lists are enforced, binary files are rejected, and output is capped at 1 MiB. |
+| `list_directory(path, max_entries=200)` | List one permitted directory level without reading file contents. Built-in and environment-defined deny lists are enforced, and output is capped at 500 entries. |
 
 ## What it looks like in practice
 
