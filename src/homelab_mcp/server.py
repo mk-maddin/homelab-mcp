@@ -1,9 +1,7 @@
 """FastMCP application: read-only homelab health server.
-
 Wires up the bearer-token auth middleware, registers all read-only tools,
 and runs FastMCP's Streamable HTTP transport.
 """
-
 from __future__ import annotations
 
 import hmac
@@ -19,6 +17,7 @@ from starlette.types import ASGIApp
 
 from homelab_mcp.config import Settings, load_settings
 from homelab_mcp.tools.containers import container_logs, list_containers
+from homelab_mcp.tools.files import list_directory, read_file
 from homelab_mcp.tools.network import network_connections, recent_journal_errors
 from homelab_mcp.tools.services import list_services, service_status
 from homelab_mcp.tools.system import disk_usage, system_status
@@ -27,11 +26,7 @@ logger = logging.getLogger("homelab_mcp")
 
 
 class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
-    """Rejects any request that doesn't present the correct bearer token.
-
-    Compares tokens using hmac.compare_digest to avoid leaking timing
-    information about how much of the token matched.
-    """
+    """Reject requests that do not present the configured bearer token."""
 
     def __init__(self, app: ASGIApp, token: str) -> None:
         super().__init__(app)
@@ -40,13 +35,10 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         header = request.headers.get("authorization", "")
         scheme, _, presented = header.partition(" ")
-
         if scheme.lower() != "bearer" or not presented:
             return JSONResponse({"error": "unauthorized"}, status_code=401)
-
         if not hmac.compare_digest(presented, self._token):
             return JSONResponse({"error": "unauthorized"}, status_code=401)
-
         return await call_next(request)
 
 
@@ -56,13 +48,12 @@ def build_mcp_server() -> FastMCP:
         name="homelab-mcp",
         instructions=(
             "Read-only inspection tools for a Linux home server. Use these "
-            "to check system health, disk space, Docker containers, "
-            "systemd services, journal errors, and listening network "
-            "ports. No tool here can modify state, restart anything, or "
-            "run arbitrary commands."
+            "to check system health, disk space, Docker containers, systemd "
+            "services, journal errors, listening network ports, and permitted "
+            "files or directories. Sensitive paths are blocked. No tool can "
+            "modify state, restart anything, or run arbitrary commands."
         ),
     )
-
     mcp.tool(system_status)
     mcp.tool(disk_usage)
     mcp.tool(list_containers)
@@ -71,12 +62,13 @@ def build_mcp_server() -> FastMCP:
     mcp.tool(service_status)
     mcp.tool(recent_journal_errors)
     mcp.tool(network_connections)
-
+    mcp.tool(read_file)
+    mcp.tool(list_directory)
     return mcp
 
 
 def build_app(settings: Settings) -> Starlette:
-    """Build the ASGI app: FastMCP's Streamable HTTP app wrapped with auth."""
+    """Build the ASGI app: FastMCP Streamable HTTP wrapped with auth."""
     mcp = build_mcp_server()
     middleware = [Middleware(BearerTokenAuthMiddleware, token=settings.token)]
     return mcp.http_app(path="/mcp", middleware=middleware, transport="streamable-http")
@@ -86,7 +78,6 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO)
     settings = load_settings()
     app = build_app(settings)
-
     import uvicorn
 
     logger.info("Starting homelab-mcp on %s:%d", settings.host, settings.port)
