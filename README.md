@@ -57,14 +57,14 @@ uv sync
 ```
 
 ### Filesystem access controls
- 
+
 The read_file tool reads regular text files and returns at most 1 MiB per
 request. The list_directory tool lists one directory level and returns at
 most 500 entries. Binary files are rejected. Symlink targets are resolved
 before the deny lists are checked.
- 
+
 The following files are always denied:
- 
+
 - /etc/passwd
 - /etc/shadow
 - /etc/shadow-
@@ -73,9 +73,9 @@ The following files are always denied:
 - /etc/sudoers
 - /etc/sudo.conf
 - /etc/crypttab
- 
+
 The following folders and all descendants are always denied:
- 
+
 - /etc/sudoers.d
 - /etc/ssh
 - /etc/security
