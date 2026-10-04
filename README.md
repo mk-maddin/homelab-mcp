@@ -64,7 +64,7 @@ most 500 entries. Binary files are rejected. Symlink targets are resolved
 before the deny lists are checked.
 
 The following files are always denied:
-
+```
 - /etc/passwd
 - /etc/shadow
 - /etc/shadow-
@@ -73,9 +73,10 @@ The following files are always denied:
 - /etc/sudoers
 - /etc/sudo.conf
 - /etc/crypttab
+```
 
 The following folders and all descendants are always denied:
-
+```
 - /etc/sudoers.d
 - /etc/ssh
 - /etc/security
@@ -86,6 +87,7 @@ The following folders and all descendants are always denied:
 - /sys
 - /dev
 - /run
+```
 
 Optional additional denied files and folders can be configured in .env or
 through environment variables. Values are comma-separated absolute paths;
