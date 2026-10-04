@@ -80,6 +80,18 @@ def main() -> None:
     app = build_app(settings)
     import uvicorn
 
+    from homelab_mcp.tools.files import (
+        _DEFAULT_DENIED_FILES,
+        _DEFAULT_DENIED_FOLDERS,
+        _parse_denied_paths,
+    )
+
+    extra_files = _parse_denied_paths("HOMELAB_MCP_DENIED_FILES")
+    extra_folders = _parse_denied_paths("HOMELAB_MCP_DENIED_FOLDERS")
+    logger.info(
+        "Denied paths: built-in files=%d, built-in folders=%d, env files=%d, env folders=%d",
+        len(_DEFAULT_DENIED_FILES),len(_DEFAULT_DENIED_FOLDERS),len(extra_files),len(extra_folders),)
+
     logger.info("Starting homelab-mcp on %s:%d", settings.host, settings.port)
     uvicorn.run(app, host=settings.host, port=settings.port)
 
