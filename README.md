@@ -80,7 +80,7 @@ The following folders and all descendants are always denied:
 - /etc/sudoers.d
 - /etc/ssh
 - /etc/security
-- /opt/homelab_mcp
+- /opt/homelab-mcp
 - /root
 - /home
 - /proc

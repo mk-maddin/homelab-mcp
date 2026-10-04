@@ -28,7 +28,7 @@ _DEFAULT_DENIED_FOLDERS = (
     Path("/etc/sudoers.d"),
     Path("/etc/ssh"),
     Path("/etc/security"),
-    Path("/opt/homelab_mcp"),
+    Path("/opt/homelab-mcp"),
     Path("/root"),
     Path("/home"),
     Path("/proc"),
