@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import csv
+import logging
 import os
 import stat
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("homelab_mcp")
 
 _MAX_READ_BYTES = 1_048_576
 _MAX_DIRECTORY_ENTRIES = 500
@@ -62,15 +65,28 @@ def _parse_denied_paths(variable_name: str) -> tuple[Path, ...]:
     return tuple(paths)
 
 
+_EXTRA_DENIED_FILES = _parse_denied_paths(
+    "HOMELAB_MCP_DENIED_FILES"
+)
+_EXTRA_DENIED_FOLDERS = _parse_denied_paths(
+    "HOMELAB_MCP_DENIED_FOLDERS"
+)
+
+logger.info(
+    "Denied paths: built-in files=%d, built-in folders=%d, env files=%d, env folders=%d",
+    len(_DEFAULT_DENIED_FILES),
+    len(_DEFAULT_DENIED_FOLDERS),
+    len(_EXTRA_DENIED_FILES),
+    len(_EXTRA_DENIED_FOLDERS),
+)
+
+
 def _denied_files() -> frozenset[Path]:
-    return _DEFAULT_DENIED_FILES.union(
-        _parse_denied_paths("HOMELAB_MCP_DENIED_FILES")
-    )
+    return _DEFAULT_DENIED_FILES.union(_EXTRA_DENIED_FILES)
 
 
 def _denied_folders() -> tuple[Path, ...]:
-    additional = _parse_denied_paths("HOMELAB_MCP_DENIED_FOLDERS")
-    return tuple(dict.fromkeys((*_DEFAULT_DENIED_FOLDERS, *additional)))
+    return tuple(dict.fromkeys((*_DEFAULT_DENIED_FOLDERS, *_EXTRA_DENIED_FOLDERS)))
 
 
 def _resolve_requested_path(raw_path: str) -> tuple[Path | None, str | None]:
