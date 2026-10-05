@@ -19,6 +19,7 @@ from homelab_mcp.config import Settings, load_settings
 from homelab_mcp.tools.containers import container_logs, list_containers
 from homelab_mcp.tools.files import list_directory, read_file
 from homelab_mcp.tools.network import network_connections, recent_journal_errors
+from homelab_mcp.tools.osinfo import dmidecode_search, dpkg_packages, uname_info
 from homelab_mcp.tools.services import list_services, service_status
 from homelab_mcp.tools.system import disk_usage, system_status
 
@@ -64,6 +65,9 @@ def build_mcp_server() -> FastMCP:
     mcp.tool(network_connections)
     mcp.tool(read_file)
     mcp.tool(list_directory)
+    mcp.tool(uname_info)
+    mcp.tool(dpkg_packages)
+    mcp.tool(dmidecode_search)
     return mcp
 
 

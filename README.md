@@ -196,6 +196,9 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | `network_connections()` | Listening TCP/UDP sockets: local address, port, and owning process where permitted. |
 | `read_file(path, max_bytes=1048576)` | Read a permitted regular text file. Built-in and environment-defined deny lists are enforced, binary files are rejected, and output is capped at 1 MiB. |
 | `list_directory(path, max_entries=200)` | List one permitted directory level without reading file contents. Built-in and environment-defined deny lists are enforced, and output is capped at 500 entries. |
+| `uname_info()` | Return the complete kernel and system identification reported by `uname -a`. |
+| `dpkg_packages(match="")` | Return `dpkg -l` records, optionally filtered by a literal case-insensitive match. Unfiltered and filtered output is capped at 500 lines. |
+| `dmidecode_search(match, after_lines=0, before_lines=0)` | Search `dmidecode` output using a required literal match and 0 to 20 context lines before and after each match. Requires sufficient privileges to run `dmidecode`. |
 
 ## What it looks like in practice
 
