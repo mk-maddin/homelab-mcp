@@ -1,0 +1,33 @@
+name: Syntax check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  py-compile:
+    name: Compile Python sources and tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Compile all Python files
+        shell: bash
+        run: |
+          mapfile -d '' python_files < <(find src tests -type f -name '*.py' -print0)
+          if (( ${#python_files[@]} == 0 )); then
+            echo "No Python files found under src/ or tests/." >&2
+            exit 1
+          fi
+          python -m py_compile "${python_files[@]}"
