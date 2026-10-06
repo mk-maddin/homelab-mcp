@@ -101,6 +101,21 @@ HOMELAB_MCP_DENIED_FOLDERS="/blahblah/path","/another/path"
 These values extend the built-in deny lists and cannot remove built-in
 exclusions.
 
+### Administrator-defined shell commands
+
+Additional fixed commands can be exposed through environment variables whose names start with `HOMELAB_MCP_SHELL_COMMAND_`. The suffix becomes the MCP-visible alias.
+
+```dotenv
+HOMELAB_MCP_SHELL_COMMAND_DFH="df -h /"
+HOMELAB_MCP_SHELL_COMMAND_LSUSB="lsusb"
+```
+
+The MCP client learns the available aliases through the `run_shell_command` tool description and through `list_shell_commands()`. The configured command text is not returned to the client.
+
+`run_shell_command(alias, match="")` executes only the exact command stored in the corresponding environment variable. MCP callers cannot add arguments, replace command text, or use placeholders. The optional `match` parameter is a literal, case-insensitive output filter and is never appended to the configured command.
+
+Output is capped at 500 lines and command execution times out after 30 seconds. Commands run through `/bin/sh -c` with the privileges of the MCP service. The administrator is responsible for configuring read-only commands only. Changing configured commands requires a server restart so the advertised MCP tool description is refreshed.
+
 ### Running locally
 
 ```bash
@@ -199,6 +214,8 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | `uname_info()` | Return the complete kernel and system identification reported by `uname -a`. |
 | `dpkg_packages(match="")` | Return `dpkg -l` records, optionally filtered by a literal case-insensitive match. Unfiltered and filtered output is capped at 500 lines. |
 | `dmidecode_search(match, after_lines=0, before_lines=0)` | Search `dmidecode` output using a required literal match and 0 to 20 context lines before and after each match. Requires sufficient privileges to run `dmidecode`. |
+| `list_shell_commands()` | List administrator-defined command aliases without exposing the configured command text. |
+| `run_shell_command(alias, match="")` | Execute one exact environment-defined command by alias and optionally apply a literal, case-insensitive output filter. |
 
 ## What it looks like in practice
 
