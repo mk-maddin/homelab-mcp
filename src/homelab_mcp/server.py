@@ -15,6 +15,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
+from homelab_mcp import __version__, get_git_commit
 from homelab_mcp.config import Settings, load_settings
 from homelab_mcp.tools.containers import container_logs, list_containers
 from homelab_mcp.tools.files import list_directory, read_file
@@ -112,6 +113,7 @@ def main() -> None:
         len(shell_aliases),
         ", ".join(shell_aliases) if shell_aliases else "none",
     )
+    logger.info("homelab-mcp version=%s git-commit=%s", __version__, get_git_commit())
     logger.info("Starting homelab-mcp on %s:%d", settings.host, settings.port)
     uvicorn.run(app, host=settings.host, port=settings.port)
 
