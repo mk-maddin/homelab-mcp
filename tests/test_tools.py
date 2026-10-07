@@ -280,3 +280,17 @@ def test_network_connections_filters_to_listening_sockets():
     ports = {s["local_port"] for s in result["listening_sockets"]}
     assert ports == {22, 53}
     assert result["count"] == 2
+
+
+def test_get_git_commit_env_override(monkeypatch):
+    from homelab_mcp import get_git_commit
+
+    monkeypatch.setenv("HOMELAB_MCP_GIT_COMMIT", "abc1234")
+    assert get_git_commit() == "abc1234"
+
+
+def test_get_git_commit_returns_string(monkeypatch):
+    from homelab_mcp import get_git_commit
+
+    monkeypatch.delenv("HOMELAB_MCP_GIT_COMMIT", raising=False)
+    assert get_git_commit()
