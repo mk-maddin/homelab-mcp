@@ -27,7 +27,7 @@ from homelab_mcp.tools.shellcommands import (
     tool_description as shell_command_tool_description,
 )
 from homelab_mcp.tools.services import list_services, service_status
-from homelab_mcp.tools.system import disk_usage, system_status
+from homelab_mcp.tools.system import current_time, disk_usage, system_status
 
 logger = logging.getLogger("homelab_mcp")
 
@@ -64,6 +64,7 @@ def build_mcp_server() -> FastMCP:
         ),
     )
     mcp.tool(system_status)
+    mcp.tool(current_time)
     mcp.tool(disk_usage)
     mcp.tool(list_containers)
     mcp.tool(container_logs)

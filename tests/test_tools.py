@@ -294,3 +294,15 @@ def test_get_git_commit_returns_string(monkeypatch):
 
     monkeypatch.delenv("HOMELAB_MCP_GIT_COMMIT", raising=False)
     assert get_git_commit()
+
+
+def test_current_time_returns_consistent_values():
+    from datetime import datetime
+
+    result = system.current_time()
+    local = datetime.fromisoformat(result["local"])
+    utc = datetime.fromisoformat(result["utc"])
+    assert local == utc
+    assert utc.utcoffset().total_seconds() == 0
+    assert abs(result["unix_timestamp"] - int(local.timestamp())) <= 1
+    assert result["timezone"]

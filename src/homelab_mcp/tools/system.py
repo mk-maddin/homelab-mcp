@@ -4,9 +4,26 @@ from __future__ import annotations
 
 import shutil
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 import psutil
+
+
+def current_time() -> dict[str, Any]:
+    """Get the server's current date and time.
+
+    Returns the local time (ISO 8601 with UTC offset), the same instant in
+    UTC, the local timezone name, and the Unix timestamp. Use this to
+    interpret log timestamps or to check for clock problems on the host.
+    """
+    now = datetime.now().astimezone()
+    return {
+        "local": now.isoformat(timespec="seconds"),
+        "utc": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
+        "timezone": now.tzname(),
+        "unix_timestamp": int(now.timestamp()),
+    }
 
 
 def system_status() -> dict[str, Any]:

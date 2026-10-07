@@ -202,6 +202,7 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | Tool | Description |
 |---|---|
 | `system_status()` | Uptime, load average (1/5/15m), memory used/total, CPU count and utilization. |
+| `current_time()` | Current server date and time: local (ISO 8601 with offset), UTC, timezone name, and Unix timestamp. |
 | `disk_usage(path="/")` | Total/used/free/percent disk space for a given mount path. |
 | `list_containers()` | Name, image, status, and port mappings for all Docker containers (running and stopped). |
 | `container_logs(name, lines=100)` | Tail of logs for one named Docker container. |
