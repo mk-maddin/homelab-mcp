@@ -26,6 +26,11 @@ from homelab_mcp.tools.shellcommands import (
     run_shell_command,
     tool_description as shell_command_tool_description,
 )
+from homelab_mcp.tools.sshcommands import (
+    load_ssh_vms,
+    run_ssh_command,
+    tool_description as ssh_command_tool_description,
+)
 from homelab_mcp.tools.services import list_services, service_status
 from homelab_mcp.tools.system import current_time, disk_usage, system_status
 
@@ -79,6 +84,7 @@ def build_mcp_server() -> FastMCP:
     mcp.tool(dmidecode_search)
     mcp.tool(list_shell_commands)
     mcp.tool(run_shell_command, description=shell_command_tool_description())
+    mcp.tool(run_ssh_command, description=ssh_command_tool_description())
     return mcp
 
 
@@ -113,6 +119,12 @@ def main() -> None:
         "Configured shell-command aliases (%d): %s",
         len(shell_aliases),
         ", ".join(shell_aliases) if shell_aliases else "none",
+    )
+    ssh_vms = load_ssh_vms()
+    logger.info(
+        "Configured SSH VMs (%d): %s",
+        len(ssh_vms),
+        ", ".join(ssh_vms) if ssh_vms else "none",
     )
     logger.info("homelab-mcp version=%s git-commit=%s", __version__, get_git_commit())
     logger.info("Starting homelab-mcp on %s:%d", settings.host, settings.port)
