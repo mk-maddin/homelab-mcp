@@ -217,21 +217,23 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | `dmidecode_search(match, after_lines=0, before_lines=0)` | Search `dmidecode` output using a required literal match and 0 to 20 context lines before and after each match. Requires sufficient privileges to run `dmidecode`. |
 | `list_shell_commands()` | List administrator-defined command aliases without exposing the configured command text. |
 | `run_shell_command(alias, match="")` | Execute one exact environment-defined command by alias and optionally apply a literal, case-insensitive output filter. |
-| `run_ssh_command(vm, command)` | Run `ssh <vm> '<command>'` for a VM from the configured allowlist and log it and its stdout/stderr to the configured file; returns stdout, stderr and exit code. Can modify the VM; disabled unless configured. |
+| `run_vm_console_command(vm, command)` | Type a single-line command into the serial console (`virsh console`) of a VM from the configured allowlist; logs it and its output to the configured file and returns the output. Can modify the VM; disabled unless configured. |
 
-### SSH commands on VMs
+### VM serial-console commands
 
-`run_ssh_command(vm, command)` runs `ssh <vm> '<command>'` and logs it to a file. Configure it in `.env`:
+`run_vm_console_command(vm, command)` types a single-line command into a VM's local serial console (`virsh console <vm>`) and logs it. Configure it in `.env`:
 
 ```dotenv
-HOMELAB_MCP_SSH_VMS=kvm-vm1,kvm-vm2
-HOMELAB_MCP_SSH_LOG=/var/log/homelab-mcp/ssh.log
+HOMELAB_MCP_KVM_VMS=vm1,vm2
+HOMELAB_MCP_KVM_LOG=/var/log/homelab-mcp/kvm.log
 ```
 
-- `vm` must be exactly one of the names in `HOMELAB_MCP_SSH_VMS` (advertised in the tool description and logged at startup). Anything else is rejected.
-- `command` is chosen freely by the MCP client and is executed by the remote user's shell. **This tool can modify the VMs** and is the one exception to the otherwise read-only design; leave the variables unset to keep it disabled, and restrict what the SSH user may do on the VM.
-- `HOMELAB_MCP_SSH_LOG` is appended to, never overwritten. Before each run a line `[<timestamp>] <vm>$ <command>` is written, followed by the command's stdout and stderr after it finishes (the exit code is not logged). The result returned to the agent contains the exit code, stdout (capped at 64 KiB, `truncated` flag), stderr and the log path. No local shell is involved: `ssh` is started with a fixed argument list and `BatchMode=yes`, with a 120 second timeout.
-- The service user needs key-based SSH access to the VMs. With the shipped systemd unit (`ProtectSystem=strict`, `ProtectHome=true`) the log directory must be added to `ReadWritePaths=` and the SSH key/`known_hosts` must live outside `/home`.
+- `vm` must be exactly one of the libvirt domain names in `HOMELAB_MCP_KVM_VMS` (advertised in the tool description and logged at startup). Anything else is rejected.
+- `command` is chosen freely by the MCP client and is run by whatever shell the VM console offers. **This tool can modify the VMs** and is the one exception to the otherwise read-only design; leave the variables unset to keep it disabled.
+- `HOMELAB_MCP_KVM_LOG` is appended to, never overwritten. Before the command is sent, a line `[<timestamp>] <vm>$ <command>` is written, followed by the console output and virsh's stderr after it finishes (no exit code). The result returned to the agent contains the output (capped at 64 KiB, `truncated` flag), stderr, `timed_out` and the log path.
+- A serial console has no end-of-output marker and no exit status for the typed command. Output is collected until the console has been quiet for 2 seconds (hard limit 30 seconds, then `timed_out` is true). `returncode` is the exit code of `virsh console` itself, not of the command. Console output includes the echoed command and the shell prompt. The console must already offer a ready shell (e.g. auto-login); a login prompt is not handled.
+- No local shell is involved: `virsh` is started with a fixed argument list on a pseudo-terminal and detached with Ctrl-] afterwards.
+- The service user needs libvirt access (e.g. the `libvirt` group; add `LIBVIRT_DEFAULT_URI=qemu:///system` to `.env` if needed). With the shipped systemd unit (`ProtectSystem=strict`) the log directory must be added to `ReadWritePaths=`.
 
 ## What it looks like in practice
 
