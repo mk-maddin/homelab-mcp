@@ -3,12 +3,12 @@
 Equivalent to ``ssh <vm> '<command>' >> <log>`` but without a local shell:
 ssh is started with a fixed argument list. Before the command runs, a header
 line with the timestamp, VM and command is appended to the administrator-
-defined log file; afterwards its stdout is appended as well.
+defined log file; afterwards its stdout and stderr are appended as well.
 
 Configuration (environment / .env):
   HOMELAB_MCP_SSH_VMS      comma-separated VM names the caller may select
   HOMELAB_MCP_SSH_LOG      file that receives the executed commands and their
-                           stdout (appended, never overwritten)
+                           stdout/stderr (appended, never overwritten)
 """
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def run_ssh_command(vm: str, command: str) -> dict[str, Any]:
     vm must be one of the machine names configured by the administrator
     (see the tool description). command is executed by the remote user's
     shell. The command is appended to the administrator-defined log file
-    before it runs, followed by its stdout. Returns the exit code, stdout
+    before it runs, followed by its stdout and stderr. Returns the exit code, stdout
     (capped), and any stderr.
     """
     if not isinstance(vm, str):
@@ -91,9 +91,10 @@ def run_ssh_command(vm: str, command: str) -> dict[str, Any]:
                 timeout=_TIMEOUT_SECONDS,
                 check=False,
             )
-            log.write(proc.stdout)
-            if proc.stdout and not proc.stdout.endswith("\n"):
-                log.write("\n")
+            for stream in (proc.stdout, proc.stderr):
+                log.write(stream)
+                if stream and not stream.endswith("\n"):
+                    log.write("\n")
     except subprocess.TimeoutExpired:
         return {"error": f"ssh command exceeded {_TIMEOUT_SECONDS} seconds"}
     except (OSError, subprocess.SubprocessError) as exc:
@@ -120,7 +121,7 @@ def tool_description() -> str:
         "Run a command on one allowlisted VM via SSH "
         "(ssh <vm> '<command>' >> <log>). vm must be one of the configured "
         "machine names; command is executed by the remote shell. The command "
-        "and its stdout are appended to the administrator-defined log file; "
+        "and its stdout/stderr are appended to the administrator-defined log file; "
         "stdout, stderr and the exit code are also returned. This tool can "
         f"modify the remote machine. Available VMs: {available}."
     )

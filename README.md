@@ -217,7 +217,7 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | `dmidecode_search(match, after_lines=0, before_lines=0)` | Search `dmidecode` output using a required literal match and 0 to 20 context lines before and after each match. Requires sufficient privileges to run `dmidecode`. |
 | `list_shell_commands()` | List administrator-defined command aliases without exposing the configured command text. |
 | `run_shell_command(alias, match="")` | Execute one exact environment-defined command by alias and optionally apply a literal, case-insensitive output filter. |
-| `run_ssh_command(vm, command)` | Run `ssh <vm> '<command>'` for a VM from the configured allowlist and log it and its stdout to the configured file; returns stdout, stderr and exit code. Can modify the VM; disabled unless configured. |
+| `run_ssh_command(vm, command)` | Run `ssh <vm> '<command>'` for a VM from the configured allowlist and log it and its stdout/stderr to the configured file; returns stdout, stderr and exit code. Can modify the VM; disabled unless configured. |
 
 ### SSH commands on VMs
 
@@ -230,7 +230,7 @@ HOMELAB_MCP_SSH_LOG=/var/log/homelab-mcp/ssh.log
 
 - `vm` must be exactly one of the names in `HOMELAB_MCP_SSH_VMS` (advertised in the tool description and logged at startup). Anything else is rejected.
 - `command` is chosen freely by the MCP client and is executed by the remote user's shell. **This tool can modify the VMs** and is the one exception to the otherwise read-only design; leave the variables unset to keep it disabled, and restrict what the SSH user may do on the VM.
-- `HOMELAB_MCP_SSH_LOG` is appended to, never overwritten. Before each run a line `[<timestamp>] <vm>$ <command>` is written, followed by the command's stdout after it finishes. The result returned to the agent contains the exit code, stdout (capped at 64 KiB, `truncated` flag), stderr and the log path. No local shell is involved: `ssh` is started with a fixed argument list and `BatchMode=yes`, with a 120 second timeout.
+- `HOMELAB_MCP_SSH_LOG` is appended to, never overwritten. Before each run a line `[<timestamp>] <vm>$ <command>` is written, followed by the command's stdout and stderr after it finishes (the exit code is not logged). The result returned to the agent contains the exit code, stdout (capped at 64 KiB, `truncated` flag), stderr and the log path. No local shell is involved: `ssh` is started with a fixed argument list and `BatchMode=yes`, with a 120 second timeout.
 - The service user needs key-based SSH access to the VMs. With the shipped systemd unit (`ProtectSystem=strict`, `ProtectHome=true`) the log directory must be added to `ReadWritePaths=` and the SSH key/`known_hosts` must live outside `/home`.
 
 ## What it looks like in practice

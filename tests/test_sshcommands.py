@@ -66,7 +66,7 @@ def test_runs_ssh_without_shell_logs_command_first_and_returns_output(configured
     ]
     assert run.call_args.kwargs.get("shell") is None
     assert seen_in_log["before_run"].endswith("] vm1$ echo 'hi there'; uptime\n")
-    assert configured.read_text() == seen_in_log["before_run"] + "hello\n"
+    assert configured.read_text() == seen_in_log["before_run"] + "hello\nwarn\n"
     assert result == {
         "vm": "vm1", "returncode": 3, "stdout": "hello\n", "truncated": False,
         "log": str(configured), "stderr": "warn",
@@ -83,6 +83,7 @@ def test_log_is_appended_not_overwritten(configured, monkeypatch) -> None:
     text = configured.read_text()
     assert text.startswith("old content\n[")
     assert text.endswith("] vm1$ false\nno newline\n")
+    assert "exit" not in text.lower()
     assert result["returncode"] == 1 and "stderr" not in result
 
 
