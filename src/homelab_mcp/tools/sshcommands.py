@@ -1,19 +1,21 @@
 """Run a caller-supplied command on an allowlisted VM over SSH.
 
-Equivalent to ``ssh <vm> '<command>' > <log>`` but without a local shell:
-ssh is started with a fixed argument list and its stdout is written to the
-administrator-defined log file by Python.
+Equivalent to ``ssh <vm> '<command>' >> <log>`` but without a local shell:
+ssh is started with a fixed argument list. Before the command runs, a header
+line with the timestamp, VM and command is appended to the administrator-
+defined log file; afterwards its stdout is appended as well.
 
 Configuration (environment / .env):
   HOMELAB_MCP_SSH_VMS      comma-separated VM names the caller may select
-  HOMELAB_MCP_SSH_LOG      file that receives the command's stdout
-                           (overwritten on every run)
+  HOMELAB_MCP_SSH_LOG      file that receives the executed commands and their
+                           stdout (appended, never overwritten)
 """
 from __future__ import annotations
 
 import os
 import re
 import subprocess
+from datetime import datetime
 from typing import Any
 
 _VMS_VAR = "HOMELAB_MCP_SSH_VMS"
@@ -21,6 +23,7 @@ _LOG_VAR = "HOMELAB_MCP_SSH_LOG"
 _VM_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$")
 _MAX_COMMAND_LENGTH = 4096
 _MAX_STDERR_CHARS = 4096
+_MAX_OUTPUT_CHARS = 65536
 _TIMEOUT_SECONDS = 120
 
 
@@ -40,13 +43,13 @@ def ssh_log_path() -> str | None:
 
 
 def run_ssh_command(vm: str, command: str) -> dict[str, Any]:
-    """Run a command on one allowlisted VM via SSH and write its stdout to the log.
+    """Run a command on one allowlisted VM via SSH.
 
     vm must be one of the machine names configured by the administrator
     (see the tool description). command is executed by the remote user's
-    shell. Standard output goes to the administrator-defined log file
-    (overwritten each run) and is not returned; read it from there.
-    Returns the exit code, log path, and any stderr.
+    shell. The command is appended to the administrator-defined log file
+    before it runs, followed by its stdout. Returns the exit code, stdout
+    (capped), and any stderr.
     """
     if not isinstance(vm, str):
         return {"error": "vm must be a string"}
@@ -74,16 +77,23 @@ def run_ssh_command(vm: str, command: str) -> dict[str, Any]:
         }
 
     argv = ["ssh", "-o", "BatchMode=yes", "--", vm, command]
+    timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
     try:
-        with open(log_path, "w", encoding="utf-8") as log:
+        with open(log_path, "a", encoding="utf-8") as log:
+            # Logged (and flushed) before execution so the command is
+            # recorded even if ssh hangs or the server is killed.
+            log.write(f"[{timestamp}] {vm}$ {command}\n")
+            log.flush()
             proc = subprocess.run(
                 argv,
-                stdout=log,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 timeout=_TIMEOUT_SECONDS,
                 check=False,
             )
+            log.write(proc.stdout)
+            if proc.stdout and not proc.stdout.endswith("\n"):
+                log.write("\n")
     except subprocess.TimeoutExpired:
         return {"error": f"ssh command exceeded {_TIMEOUT_SECONDS} seconds"}
     except (OSError, subprocess.SubprocessError) as exc:
@@ -92,6 +102,8 @@ def run_ssh_command(vm: str, command: str) -> dict[str, Any]:
     result: dict[str, Any] = {
         "vm": vm,
         "returncode": proc.returncode,
+        "stdout": proc.stdout[:_MAX_OUTPUT_CHARS],
+        "truncated": len(proc.stdout) > _MAX_OUTPUT_CHARS,
         "log": log_path,
     }
     stderr = proc.stderr.strip()
@@ -106,9 +118,9 @@ def tool_description() -> str:
     available = ", ".join(vms) if vms else "none configured"
     return (
         "Run a command on one allowlisted VM via SSH "
-        "(ssh <vm> '<command>' > <log>). vm must be one of the configured "
-        "machine names; command is executed by the remote shell. Standard "
-        "output is written to the administrator-defined log file (overwritten "
-        "each run) and is not returned. This tool can modify the remote "
-        f"machine. Available VMs: {available}."
+        "(ssh <vm> '<command>' >> <log>). vm must be one of the configured "
+        "machine names; command is executed by the remote shell. The command "
+        "and its stdout are appended to the administrator-defined log file; "
+        "stdout, stderr and the exit code are also returned. This tool can "
+        f"modify the remote machine. Available VMs: {available}."
     )

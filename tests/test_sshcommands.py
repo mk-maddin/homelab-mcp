@@ -51,10 +51,12 @@ def test_rejects_bad_commands(configured, monkeypatch, command) -> None:
     run.assert_not_called()
 
 
-def test_runs_ssh_without_shell_and_writes_stdout_to_log(configured, monkeypatch) -> None:
-    def fake_run(argv, stdout, **kwargs):
-        stdout.write("hello\n")
-        return subprocess.CompletedProcess(argv, 0, None, "warn\n")
+def test_runs_ssh_without_shell_logs_command_first_and_returns_output(configured, monkeypatch) -> None:
+    seen_in_log = {}
+
+    def fake_run(argv, **kwargs):
+        seen_in_log["before_run"] = configured.read_text()
+        return subprocess.CompletedProcess(argv, 3, "hello\n", "warn\n")
 
     run = Mock(side_effect=fake_run)
     monkeypatch.setattr(sshcommands.subprocess, "run", run)
@@ -63,21 +65,46 @@ def test_runs_ssh_without_shell_and_writes_stdout_to_log(configured, monkeypatch
         "ssh", "-o", "BatchMode=yes", "--", "vm1", "echo 'hi there'; uptime",
     ]
     assert run.call_args.kwargs.get("shell") is None
-    assert configured.read_text() == "hello\n"
+    assert seen_in_log["before_run"].endswith("] vm1$ echo 'hi there'; uptime\n")
+    assert configured.read_text() == seen_in_log["before_run"] + "hello\n"
     assert result == {
-        "vm": "vm1", "returncode": 0, "log": str(configured), "stderr": "warn",
+        "vm": "vm1", "returncode": 3, "stdout": "hello\n", "truncated": False,
+        "log": str(configured), "stderr": "warn",
     }
 
 
-def test_log_is_overwritten(configured, monkeypatch) -> None:
+def test_log_is_appended_not_overwritten(configured, monkeypatch) -> None:
     configured.write_text("old content\n")
     monkeypatch.setattr(
         sshcommands.subprocess, "run",
-        Mock(return_value=subprocess.CompletedProcess([], 1, None, "")),
+        Mock(return_value=subprocess.CompletedProcess([], 1, "no newline", "")),
     )
     result = sshcommands.run_ssh_command("vm1", "false")
-    assert configured.read_text() == ""
+    text = configured.read_text()
+    assert text.startswith("old content\n[")
+    assert text.endswith("] vm1$ false\nno newline\n")
     assert result["returncode"] == 1 and "stderr" not in result
+
+
+def test_command_logged_even_on_timeout(configured, monkeypatch) -> None:
+    monkeypatch.setattr(
+        sshcommands.subprocess, "run",
+        Mock(side_effect=subprocess.TimeoutExpired("ssh", 120)),
+    )
+    assert "exceeded" in sshcommands.run_ssh_command("vm1", "sleep 999")["error"]
+    assert configured.read_text().endswith("] vm1$ sleep 999\n")
+
+
+def test_stdout_returned_is_capped_but_logged_in_full(configured, monkeypatch) -> None:
+    big = "x" * (sshcommands._MAX_OUTPUT_CHARS + 10)
+    monkeypatch.setattr(
+        sshcommands.subprocess, "run",
+        Mock(return_value=subprocess.CompletedProcess([], 0, big, "")),
+    )
+    result = sshcommands.run_ssh_command("vm1", "cat big")
+    assert len(result["stdout"]) == sshcommands._MAX_OUTPUT_CHARS
+    assert result["truncated"] is True
+    assert big in configured.read_text()
 
 
 def test_timeout_and_os_errors(configured, monkeypatch) -> None:
