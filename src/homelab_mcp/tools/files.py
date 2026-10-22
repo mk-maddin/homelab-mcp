@@ -9,6 +9,8 @@ from typing import Any
 
 _MAX_READ_BYTES = 1_048_576
 _MAX_DIRECTORY_ENTRIES = 500
+_MAX_TAIL_LINES = 1000
+_TAIL_BLOCK_BYTES = 8192
 
 _DEFAULT_DENIED_FILES = frozenset({
     Path("/etc/passwd"),
@@ -125,6 +127,67 @@ def read_file(path: str, max_bytes: int = _MAX_READ_BYTES) -> dict[str, Any]:
         return {"error": "binary files are not supported", "path": str(resolved)}
     return {
         "path": str(resolved), "size_bytes": info.st_size,
+        "bytes_returned": len(data), "truncated": truncated,
+        "content": data.decode("utf-8", errors="replace"),
+    }
+
+
+def tail_file(path: str, lines: int = 100) -> dict[str, Any]:
+    """Read the last lines of a permitted regular text file without modifying it.
+
+    Use this for logs where the newest entries are at the end. Returns at
+    most the last `lines` lines (default 100, maximum 1000) and at most
+    1 MiB of content. Same deny lists and binary-file restriction as read_file.
+    """
+    resolved, error = _resolve_requested_path(path)
+    if error:
+        return {"error": error, "path": path}
+    assert resolved is not None
+    try:
+        info = resolved.stat()
+    except OSError as exc:
+        return {"error": f"cannot stat file: {exc}", "path": str(resolved)}
+    if not stat.S_ISREG(info.st_mode):
+        return {"error": "path is not a regular file", "path": str(resolved)}
+    if isinstance(lines, bool) or not isinstance(lines, int):
+        return {"error": "lines must be an integer", "path": str(resolved)}
+    wanted = max(1, min(lines, _MAX_TAIL_LINES))
+
+    buffer = b""
+    try:
+        with resolved.open("rb") as handle:
+            position = handle.seek(0, os.SEEK_END)
+            # Read blocks backwards until enough newlines (one extra, to
+            # know the first line is complete) or the byte cap is reached.
+            while (
+                position > 0
+                and buffer.count(b"\n") <= wanted
+                and len(buffer) < _MAX_READ_BYTES
+            ):
+                step = min(_TAIL_BLOCK_BYTES, position)
+                position -= step
+                handle.seek(position)
+                buffer = handle.read(step) + buffer
+    except (OSError, PermissionError) as exc:
+        return {"error": f"cannot read file: {exc}", "path": str(resolved)}
+
+    reached_start = position == 0
+    parts = buffer.split(b"\n")
+    if parts and parts[-1] == b"":
+        parts.pop()
+    if not reached_start and len(parts) > 1:
+        parts.pop(0)  # possibly cut off in the middle by the block boundary
+    truncated = not reached_start or len(parts) > wanted
+    parts = parts[-wanted:]
+    data = b"\n".join(parts)
+    if len(data) > _MAX_READ_BYTES:
+        data = data[-_MAX_READ_BYTES:]
+        truncated = True
+    if b"\x00" in data:
+        return {"error": "binary files are not supported", "path": str(resolved)}
+    return {
+        "path": str(resolved), "size_bytes": info.st_size,
+        "lines_returned": len(data.splitlines()),
         "bytes_returned": len(data), "truncated": truncated,
         "content": data.decode("utf-8", errors="replace"),
     }

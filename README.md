@@ -59,7 +59,8 @@ uv sync
 ### Filesystem access controls
 
 The read_file tool reads regular text files and returns at most 1 MiB per
-request. The list_directory tool lists one directory level and returns at
+request. The tail_file tool returns the last N lines (at most 1000, 1 MiB)
+of a file, e.g. a log. The list_directory tool lists one directory level and returns at
 most 500 entries. Binary files are rejected. Symlink targets are resolved
 before the deny lists are checked.
 
@@ -211,6 +212,7 @@ Vaidated entry for "Claude for windows" Version 2.19675.0 (5706e5) is as follows
 | `recent_journal_errors(since="1h", priority="err")` | Recent journal entries at or above a given syslog priority. |
 | `network_connections()` | Listening TCP/UDP sockets: local address, port, and owning process where permitted. |
 | `read_file(path, max_bytes=1048576)` | Read a permitted regular text file. Built-in and environment-defined deny lists are enforced, binary files are rejected, and output is capped at 1 MiB. |
+| `tail_file(path, lines=100)` | Read the last `lines` lines (max 1000) of a permitted regular text file, e.g. a log. Same deny lists and binary-file restriction as `read_file`; output is capped at 1 MiB. |
 | `list_directory(path, max_entries=200)` | List one permitted directory level without reading file contents. Built-in and environment-defined deny lists are enforced, and output is capped at 500 entries. |
 | `uname_info()` | Return the complete kernel and system identification reported by `uname -a`. |
 | `dpkg_packages(match="")` | Return `dpkg -l` records, optionally filtered by a literal case-insensitive match. Unfiltered and filtered output is capped at 500 lines. |
